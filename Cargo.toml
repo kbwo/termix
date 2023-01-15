@@ -1,0 +1,21 @@
+[package]
+name = "termix"
+version = "0.0.2"
+edition = "2021"
+authors = ["Kodai Kabasawa <kabaaa1126@gmail.com>"]
+description = "TUI framework inspired by bubbletea."
+homepage = "https://github.com/kbwo/termix"
+repository = "https://github.com/kbwo/termix"
+readme  = "README.md"
+keywords = ["terminal"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.68"
+nix = "0.26.1"
+thiserror = "1.0.38"
+
+[dev-dependencies]
+indent = "0.1.1"
