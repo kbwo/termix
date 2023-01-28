@@ -91,7 +91,7 @@ use std::{
     fmt::Debug,
     sync::{
         mpsc::{channel, Receiver, Sender},
-        Arc, Mutex, RwLock,
+        Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -105,7 +105,7 @@ pub struct Program<T, E: Send + Debug> {
     renderer: Arc<Mutex<StandardRenderer>>,
     event_tx: Sender<Event<E>>,
     event_rx: Arc<Receiver<Event<E>>>,
-    model: Arc<RwLock<Box<dyn ModelAct<T, E>>>>,
+    model: Arc<Mutex<Box<dyn ModelAct<T, E>>>>,
 }
 
 impl<T, E: Send + Debug + 'static> Program<T, E> {
@@ -116,7 +116,7 @@ impl<T, E: Send + Debug + 'static> Program<T, E> {
             renderer: Arc::new(Mutex::new(StandardRenderer::new())),
             event_tx: e_tx,
             event_rx: Arc::new(e_rx),
-            model: Arc::new(RwLock::new(model)),
+            model: Arc::new(Mutex::new(model)),
         }
     }
 
@@ -139,7 +139,7 @@ impl<T, E: Send + Debug + 'static> Program<T, E> {
                     break;
                 }
                 _ => {
-                    if let Ok(mut model) = self.model.write() {
+                    if let Ok(mut model) = self.model.lock() {
                         let (new_model, cmd) = model.update(&ev);
                         if let Some(new) = new_model {
                             let _ = std::mem::replace(&mut *model, new);
