@@ -13,25 +13,29 @@ pub struct CursorPos(pub usize, pub usize);
 
 pub fn detect_cursor_pos(stdout: &mut RawTerminal<Stdout>) -> Result<CursorPos, TermixError> {
     let timeout = Duration::from_secs(0);
-    let mut prepared = false;
+    let delimiter = b'R';
     let (tx, rx) = channel();
-    let (buf_tx, buf_rx) = channel::<[u8; 7]>();
+    let (buf_tx, buf_rx) = channel::<Vec<u8>>();
     thread::spawn(move || {
+        let mut buf: [u8; 1] = [0];
+        let mut read_chars = Vec::new();
         let mut tty = get_tty();
         tx.send(Prepared).unwrap();
         wait_until_ready(tty.as_raw_fd(), None, timeout).unwrap(); // wait timeout
-        let mut reader_buf = [0; 7];
-        tty.read_exact(&mut reader_buf).unwrap();
-        buf_tx.send(reader_buf).unwrap();
+        while buf[0] != delimiter {
+            if tty.read(&mut buf).unwrap() > 0 {
+                read_chars.push(buf[0]);
+            }
+        }
+        buf_tx.send(read_chars).unwrap();
     });
-    while rx.recv().is_ok() && !prepared {
-        prepared = true;
+    if rx.recv().is_ok() {
         stdout.lock().write_all("\x1B[6n".as_bytes()).unwrap();
         stdout.flush().unwrap();
     }
     let mut cursor: Option<CursorPos> = None;
 
-    while let Ok(buf) = buf_rx.recv() {
+    if let Ok(buf) = buf_rx.recv() {
         let mut read_str = std::str::from_utf8(&buf).unwrap().to_string();
         read_str.pop();
         let beg = read_str.rfind('[').unwrap();

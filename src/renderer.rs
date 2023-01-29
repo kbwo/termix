@@ -36,7 +36,7 @@ impl StandardRenderer {
 
     fn interval_refresh(&self, tx: Sender<Notifier>) {
         thread::spawn(move || loop {
-            tx.send(Notifier {}).unwrap();
+            let _ = tx.send(Notifier {});
         });
     }
 

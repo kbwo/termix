@@ -1,9 +1,6 @@
-use std::io::{BufRead, Stdout, Write};
+use std::io::{Stdout, Write};
 
-use crate::{
-    cursor::{detect_cursor_pos, CursorPos},
-    raw::{IntoRawMode, RawTerminal},
-};
+use crate::raw::{IntoRawMode, RawTerminal};
 
 trait Flushable {
     fn flush();
@@ -12,9 +9,7 @@ trait Flushable {
 pub struct Output {
     buf: Vec<u8>,
     out_target: RawTerminal<Stdout>,
-    start_pos: CursorPos,
     lines: usize,
-    inited: bool,
 }
 unsafe impl Send for Output {}
 
@@ -33,14 +28,11 @@ impl Output {
         // hide cursor
         raw.hide_cursor().unwrap();
         raw.flush().unwrap();
-        let start_pos = detect_cursor_pos(&mut raw).unwrap();
 
         Output {
             buf: vec![],
             out_target: raw,
             lines: 0,
-            start_pos,
-            inited: false,
         }
     }
     pub fn write(&mut self, new_data: &str) {
@@ -49,20 +41,12 @@ impl Output {
 
     pub fn flush(&mut self) {
         if !self.buf.is_empty() {
-            // avoid buffer overflow
-            let start_y = self.start_pos.0
-                - if self.start_pos.0 >= self.lines {
-                    self.lines
-                } else {
-                    self.start_pos.0
-                };
-            let _ = self
-                .out_target
-                .write(format!("\x1b[{};{}H", start_y, self.start_pos.1).as_bytes());
-            let _ = self.out_target.write(b"\x1b[0J");
-            if self.buf.lines().count() < self.lines {
-                self.start_pos.0 -= self.lines - self.buf.lines().count();
+            for _ in 0..self.lines {
+                let _ = self.out_target.write(b"\x1bM");
             }
+            let _ = self.out_target.flush();
+            let _ = self.out_target.write(b"\x1b[0J");
+            let _ = self.out_target.flush();
             self.lines = std::str::from_utf8(&self.buf)
                 .unwrap_or("")
                 .replace("\x1b[0m", "")
@@ -72,7 +56,6 @@ impl Output {
         let _ = self.out_target.write(&self.buf);
         self.buf.clear();
         let _ = self.out_target.flush();
-        self.inited = true;
     }
 
     pub fn quit(&mut self) {
